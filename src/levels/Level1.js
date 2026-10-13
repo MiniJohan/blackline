@@ -8,20 +8,26 @@ const WORLD = {
   height: 720,
 };
 
-// Terrain layout belongs to this level.
-// x = left edge, width = length, top = walking surface.
+// Each section defines a walkable surface.
+// Gaps between sections create traversal challenges.
 const TERRAIN = [
-  { x: 0, width: 560, top: 640, type: "floor" },
-  { x: 560, width: 280, top: 600, type: "ruins" },
-  { x: 840, width: 200, top: 600, type: "bridge" },
+  // 1. Entrance courtyard
+  { x: 0, width: 620, top: 640, type: "floor" },
 
-  // Open gap
-  { x: 1120, width: 360, top: 640, type: "floor" },
-  { x: 1480, width: 220, top: 600, type: "ruins" },
-  { x: 1700, width: 180, top: 600, type: "bridge" },
+  // 2. Broken passage
+  { x: 680, width: 230, top: 610, type: "ruins" },
+  { x: 910, width: 180, top: 610, type: "bridge" },
+  { x: 1090, width: 210, top: 570, type: "ruins" },
 
-  // Second gap
-  { x: 1940, width: 460, top: 640, type: "floor" },
+  // 3. Lower approach to the deeper ruins
+  { x: 1370, width: 340, top: 640, type: "floor" },
+
+  // 4. Raised ancient walkway
+  { x: 1710, width: 220, top: 590, type: "ruins" },
+  { x: 1930, width: 150, top: 590, type: "bridge" },
+
+  // 5. Deeper ruined courtyard
+  { x: 2080, width: 320, top: 640, type: "floor" },
 ];
 
 export default class Level1 {
@@ -38,12 +44,6 @@ export default class Level1 {
       TERRAIN,
       WORLD
     ).create();
-
-    console.log("Environment result:", environment);
-    console.log("Level result:", {
-        world: WORLD,
-        terrain: environment.terrain,
-      });
 
     return {
       world: WORLD,
