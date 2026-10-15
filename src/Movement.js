@@ -14,8 +14,8 @@ const MOVEMENT = {
 
   dashSpeed: 1400,
   dashDuration: 200,
-  trailInterval: 24,
-  trailLifetime: 130,
+  trailInterval: 32,
+  trailLifetime: 128,
 
   coyoteTime: 100,
   jumpBufferTime: 120,
@@ -30,10 +30,13 @@ export default class Movement {
     this.scene = scene;
     this.player = player;
     this.body = player.body;
+    this.body.setCollideWorldBounds(true);
 
     this.keys = scene.input.keyboard.addKeys({
       left: Phaser.Input.Keyboard.KeyCodes.A,
       right: Phaser.Input.Keyboard.KeyCodes.D,
+      up: Phaser.Input.Keyboard.KeyCodes.W,
+      down: Phaser.Input.Keyboard.KeyCodes.S,
       jump: Phaser.Input.Keyboard.KeyCodes.SPACE,
       dash: Phaser.Input.Keyboard.KeyCodes.SHIFT,
     });
@@ -46,6 +49,7 @@ export default class Movement {
     this.jumpBufferTimer = 0;
 
     this.dashing = false;
+    this.dashDirection = { x: 0, y: 0 };
     this.dashTimer = 0;
     this.trailTimer = 0;
 
@@ -71,7 +75,6 @@ export default class Movement {
 
     const touchingWall = touchingLeft || touchingRight;
 
-    // Recharge jumps and dash when grounded
     if (grounded) {
       this.jumpsRemaining = 2;
       this.canDash = true;
@@ -80,14 +83,13 @@ export default class Movement {
       this.coyoteTimer -= delta;
     }
 
-    // Jump input buffer
     if (Phaser.Input.Keyboard.JustDown(this.keys.jump)) {
       this.jumpBufferTimer = MOVEMENT.jumpBufferTime;
     } else {
       this.jumpBufferTimer -= delta;
     }
 
-    // Update dash
+    // Handle an active dash.
     if (this.dashing) {
       this.dashTimer -= delta;
       this.trailTimer -= delta;
@@ -97,6 +99,22 @@ export default class Movement {
         this.trailTimer += MOVEMENT.trailInterval;
       }
 
+      // Prevent downward dashes from passing through the floor.
+      const floorY = 640;
+      const playerRadius = 14;
+
+      if (
+        this.dashDirection.y > 0 &&
+        this.player.y + playerRadius >= floorY
+      ) {
+        this.player.y = floorY - playerRadius;
+        this.body.reset(this.player.x, this.player.y);
+
+        this.endDash();
+        this.body.setVelocity(0, 0);
+        return;
+      }
+
       if (this.dashTimer <= 0) {
         this.endDash();
       } else {
@@ -104,22 +122,38 @@ export default class Movement {
       }
     }
 
+
     const left = this.keys.left.isDown;
     const right = this.keys.right.isDown;
+    const up = this.keys.up.isDown;
+    const down = this.keys.down.isDown;
 
-    if (left) this.facing = -1;
-    if (right) this.facing = 1;
+    if (left && !right) this.facing = -1;
+    if (right && !left) this.facing = 1;
 
-    // Start dash
+    // Start directional dash.
     if (
       Phaser.Input.Keyboard.JustDown(this.keys.dash) &&
       this.canDash
     ) {
       let directionX = Number(right) - Number(left);
+      let directionY = Number(down) - Number(up);
 
-      if (directionX === 0) {
+      // No directional input: dash in the facing direction.
+      if (directionX === 0 && directionY === 0) {
         directionX = this.facing;
       }
+
+      // Normalize diagonal dashes to keep their speed consistent.
+      const length = Math.hypot(directionX, directionY);
+
+      directionX /= length;
+      directionY /= length;
+
+      this.dashDirection = {
+        x: directionX,
+        y: directionY,
+      };
 
       this.dashing = true;
       this.canDash = false;
@@ -136,18 +170,21 @@ export default class Movement {
 
       body.setVelocity(
         directionX * MOVEMENT.dashSpeed,
-        0
+        directionY * MOVEMENT.dashSpeed
       );
 
-      // Squash horizontally during dash
-      this.animateScale(1.4, 0.65, 45, 90);
+      // Stretch along the dash direction.
+      if (Math.abs(directionY) > Math.abs(directionX)) {
+        this.animateScale(0.7, 1.4, 45, 90);
+      } else {
+        this.animateScale(1.4, 0.7, 45, 90);
+      }
 
       this.createTrail();
-
       return;
     }
 
-    // Horizontal movement
+    // Restore normal movement limits.
     body.setMaxVelocity(
       MOVEMENT.walkSpeed,
       MOVEMENT.maxFallSpeed
@@ -162,7 +199,7 @@ export default class Movement {
           : MOVEMENT.airAcceleration)
     );
 
-    // Jumping
+    // Jumping and wall jumping.
     if (this.jumpBufferTimer > 0) {
       if (touchingWall && !grounded) {
         const wallDirection = touchingLeft ? 1 : -1;
@@ -185,7 +222,6 @@ export default class Movement {
         this.coyoteTimer = 0;
         this.jumpBufferTimer = 0;
 
-        // Stretch on takeoff
         this.animateScale(0.85, 1.2, 55, 120);
       } else if (this.jumpsRemaining > 0) {
         body.setVelocityY(-MOVEMENT.doubleJumpPower);
@@ -197,7 +233,7 @@ export default class Movement {
       }
     }
 
-    // Variable jump height
+    // Variable jump height.
     if (
       !this.keys.jump.isDown &&
       body.velocity.y < -180
@@ -217,12 +253,7 @@ export default class Movement {
     );
 
     ghost.setAlpha(0.18);
-
-    ghost.setScale(
-      this.player.scaleX,
-      this.player.scaleY
-    );
-
+    ghost.setScale(this.player.scaleX, this.player.scaleY);
     ghost.setDepth(this.player.depth - 1);
 
     this.scene.tweens.add({
@@ -237,7 +268,6 @@ export default class Movement {
   }
 
   animateScale(scaleX, scaleY, duration, returnDuration) {
-    // Prevent overlapping scale animations
     this.scene.tweens.killTweensOf(this.player);
 
     this.scene.tweens.add({
@@ -272,7 +302,6 @@ export default class Movement {
       MOVEMENT.maxFallSpeed
     );
 
-    // Restore normal shape
     this.scene.tweens.killTweensOf(this.player);
 
     this.scene.tweens.add({

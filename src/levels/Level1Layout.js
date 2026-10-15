@@ -5,24 +5,14 @@ export const WORLD = {
   height: 720,
 };
 
+
 export const TERRAIN = [
-  // Entrance courtyard
-  { x: 0, width: 620, top: 640, type: "floor" },
-
-  // Broken passage
-  { x: 680, width: 230, top: 610, type: "ruins" },
-  { x: 910, width: 180, top: 610, type: "bridge" },
-  { x: 1090, width: 210, top: 570, type: "ruins" },
-
-  // Lower courtyard
-  { x: 1370, width: 340, top: 640, type: "floor" },
-
-  // Raised walkway
-  { x: 1710, width: 220, top: 590, type: "ruins" },
-  { x: 1930, width: 150, top: 590, type: "bridge" },
-
-  // Deeper courtyard
-  { x: 2080, width: 320, top: 640, type: "floor" },
+  {
+    x: 0,
+    width: WORLD.width,
+    top: 640,
+    type: "floor",
+  },
 ];
 
 // Decorative architecture, placed independently
